@@ -1,0 +1,3 @@
+aws_region  = "af-south-1"
+bucket_name = "tshepang-cloud-security-lab-123456"
+environment = "lab"
