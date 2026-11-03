@@ -1,0 +1,73 @@
+
+name: Terraform Security Pipeline
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '01-landing-zone/**'
+      - '.github/workflows/**'
+
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '01-landing-zone/**'
+      - '.github/workflows/**'
+
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  terraform-security:
+    name: Terraform Security Checks
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: 01-landing-zone/secure-s3-baseline
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Format Check
+        run: terraform fmt -check -recursive
+
+      - name: Terraform Initialize
+        run: terraform init -backend=false -input=false -lockfile=readonly
+
+      - name: Terraform Validate
+        run: terraform validate
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Install Checkov
+        run: python -m pip install checkov
+
+      - name: Run Checkov
+        run: checkov -d . --framework terraform --soft-fail
+
+      - name: Run Trivy
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: config
+          scan-ref: 01-landing-zone/secure-s3-baseline
+          severity: HIGH,CRITICAL
+          exit-code: '0'
+          format: table
+
+      - name: Setup TFLint
+        uses: terraform-linters/setup-tflint@v6
+
+      - name: Run TFLint
+        run: tflint --format compact
